@@ -1,10 +1,8 @@
-import type { Metadata } from 'next';
-import './globals.css';
-import Image from 'next/image';
+import "./globals.css";
 
-export const metadata: Metadata = {
-  title: 'FormSaathi - Digital Data Locker',
-  description: 'Secure Government Applications & Document Locker',
+export const metadata = {
+  title: "FormSaathi - Secure Locker & Government Services",
+  description: "Private & Encrypted Document Locker",
 };
 
 export default function RootLayout({
@@ -14,34 +12,34 @@ export default function RootLayout({
 }) {
   return (
     <html lang="hi">
-      <body className="bg-gray-100 min-h-screen relative overflow-x-hidden">
-        {/* Background Watermark */}
-        <div className="fixed inset-0 pointer-events-none flex items-center justify-center opacity-5 z-0">
-          <img src="/watermark.png" alt="Watermark" className="w-80 h-80 object-contain" />
-        </div>
+      <body className="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+        {/* Top Professional Header */}
+        <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 sm:px-8 py-3 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.png"
+              alt="FormSaathi Logo"
+              className="w-9 h-9 rounded-lg object-contain"
+            />
+            <div>
+              <span className="text-xl font-black text-slate-900 tracking-tight">
+                Form<span className="text-blue-600">Saathi</span>
+              </span>
+              <p className="text-[10px] text-slate-500 font-medium leading-none hidden sm:block">
+                Private & Encrypted Locker
+              </p>
+            </div>
+          </div>
 
-        {/* Header with App Logo */}
-        <header className="bg-blue-700 text-white p-3 shadow-md border-b border-blue-800 sticky top-0 z-50">
-          <div className="max-w-md mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white rounded-lg p-1 flex items-center justify-center shadow">
-                <img src="/logo.png" alt="FormSaathi Logo" className="w-full h-full object-contain" />
-              </div>
-              <div>
-                <span className="font-extrabold text-lg tracking-wide text-white block leading-none">
-                  FormSaathi
-                </span>
-                <span className="text-[10px] text-blue-200">Private & Encrypted Locker[cite: 1]</span>
-              </div>
-            </div>
-            <div className="bg-blue-800 px-2.5 py-1 rounded-full text-[10px] font-semibold border border-blue-600 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               256-Bit SSL
-            </div>
+            </span>
           </div>
         </header>
 
-        <main className="relative z-10">{children}</main>
+        <div className="flex-1">{children}</div>
       </body>
     </html>
   );
