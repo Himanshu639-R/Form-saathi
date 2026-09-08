@@ -7,8 +7,8 @@ interface VendorService {
   id: string;
   title: string;
   customerRate: number;
-  adminCommission: number; // 10% Auto Cut
-  vendorEarnings: number; // 90% Vendor Cut
+  adminCommission: number;
+  vendorEarnings: number;
   requiredDocs: string;
 }
 
@@ -16,60 +16,72 @@ interface Order {
   id: string;
   customerName: string;
   serviceTitle: string;
-  status: "Pending" | "Accepted" | "Completed";
+  amount: number;
+  utrNumber: string;
+  paymentStatus: "Pending_Verification" | "Verified";
+  orderStatus: "Pending" | "Accepted" | "Completed";
   customerDocs: string[];
-  receiptUploaded: boolean;
 }
 
 export default function VendorDashboard() {
   const [vendorPass, setVendorPass] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // Vendor Services List
+  // Vendor KYC Profile
+  const vendorProfile = {
+    name: "Ramesh Sharma",
+    shopName: "Sharma Online Jan Seva",
+    mobile: "9876543210",
+    aadharLast4: "5678",
+    upiId: "9876543210@paytm",
+  };
+
+  // Services Postings
   const [services, setServices] = useState<VendorService[]>([
     {
       id: "1",
       title: "जाति एवं निवास प्रमाण पत्र",
       customerRate: 150,
-      adminCommission: 15, // 10%
-      vendorEarnings: 135, // 90%
+      adminCommission: 15,
+      vendorEarnings: 135,
       requiredDocs: "आधार कार्ड, स्वप्रमाणित घोषणा पत्र, फोटो",
     },
   ]);
 
-  // Form Inputs
   const [title, setTitle] = useState("");
   const [rate, setRate] = useState<number | "">("");
   const [docs, setDocs] = useState("");
 
-  // Customer Orders State
+  // Customer Orders
   const [orders, setOrders] = useState<Order[]>([
     {
       id: "ORD-9921",
       customerName: "Ramesh Kumar",
       serviceTitle: "जाति एवं निवास प्रमाण पत्र",
-      status: "Pending",
+      amount: 150,
+      utrNumber: "UPI-409182739182",
+      paymentStatus: "Pending_Verification",
+      orderStatus: "Pending",
       customerDocs: ["Aadhaar_Front.jpg", "Photo_Passport.jpg"],
-      receiptUploaded: false,
     },
   ]);
 
   const handleVendorLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (vendorPass === "1234") { // Temporary Vendor Passcode
+    if (vendorPass === "1234") {
       setIsLoggedIn(true);
     } else {
       alert("गलत वेंडर पिन!");
     }
   };
 
-  // Add Service with Auto 10% Admin Cut
+  // Add Service with Auto 10% Cut
   const handleAddService = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !rate) return alert("कृपया सर्विस का नाम और रेट भरें!");
+    if (!title || !rate) return alert("कृपया नाम और रेट भरें!");
 
     const numericRate = Number(rate);
-    const adminCut = Math.round(numericRate * 0.10); // Auto 10% Commission
+    const adminCut = Math.round(numericRate * 0.10);
     const vendorCut = numericRate - adminCut;
 
     const newService: VendorService = {
@@ -78,32 +90,33 @@ export default function VendorDashboard() {
       customerRate: numericRate,
       adminCommission: adminCut,
       vendorEarnings: vendorCut,
-      requiredDocs: docs || "आधार कार्ड एवं संबंधित फोटो",
+      requiredDocs: docs || "आधार कार्ड एवं फोटो",
     };
 
     setServices([...services, newService]);
     setTitle("");
     setRate("");
     setDocs("");
-    alert("नई जॉब/सर्विस सफलतापूर्वक पोस्ट हो गई!");
+    alert("नई सर्विस सफलतापूर्वक पोस्ट हो गई!");
   };
 
-  // Accept Order to Unlock Documents
-  const handleAcceptOrder = (orderId: string) => {
+  // Verify Manual Payment
+  const handleVerifyPayment = (orderId: string) => {
     setOrders(
       orders.map((ord) =>
-        ord.id === orderId ? { ...ord, status: "Accepted" } : ord
+        ord.id === orderId
+          ? { ...ord, paymentStatus: "Verified", orderStatus: "Accepted" }
+          : ord
       )
     );
-    alert("ऑर्डर स्वीकार कर लिया गया है। अब आप ग्राहक के दस्तावेज देख सकते हैं।");
+    alert("पेमेंट वेरिफाई हो गई! अब आप ग्राहक के दस्तावेज देख सकते हैं।");
   };
 
-  // Upload Receipt & Wipe Customer Data Completely
+  // Complete Order & Wipeout Privacy Data
   const handleCompleteAndWipe = (orderId: string) => {
-    if (confirm("रसीद अपलोड करके ऑर्डर पूरा करें? पूरा होने के बाद ग्राहक का डेटा आपके पैनल से डिलीट हो जाएगा।")) {
-      // Data Wipeout Logic
+    if (confirm("रसीद अपलोड करके ऑर्डर पूरा करें? पूरा होने के बाद ग्राहक का डेटा डिलीट हो जाएगा।")) {
       setOrders(orders.filter((ord) => ord.id !== orderId));
-      alert("ऑर्डर सफलतापूर्वक पूरा हुआ एवं रसीद ग्राहक को भेज दी गई। ग्राहक का गोपनीयता डेटा आपके डैशबोर्ड से सुरक्षित रूप से हटा दिया गया है।");
+      alert("ऑर्डर पूरा हुआ! ग्राहक का डेटा आपके डैशबोर्ड से डिलीट कर दिया गया।");
     }
   };
 
@@ -119,7 +132,7 @@ export default function VendorDashboard() {
             value={vendorPass}
             onChange={(e) => setVendorPass(e.target.value)}
             placeholder="Enter Vendor PIN (1234)"
-            className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-center font-bold text-lg outline-none focus:ring-2 focus:ring-blue-600"
+            className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-center font-bold text-lg outline-none focus:ring-2 focus:ring-blue-600 text-slate-900"
           />
           <button type="submit" className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl text-sm">
             वेंडर डैशबोर्ड खोलें 🔓
@@ -131,7 +144,6 @@ export default function VendorDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-8 relative">
-      {/* Watermark Background */}
       <div className="fixed inset-0 opacity-15 pointer-events-none flex items-center justify-center -z-10">
         <Image src="/watermark.png" alt="Watermark" width={650} height={650} priority className="object-contain" />
       </div>
@@ -144,7 +156,8 @@ export default function VendorDashboard() {
             <span className="px-2.5 py-0.5 bg-blue-800 text-blue-100 font-bold text-[10px] rounded-md">
               VERIFIED PARTNER
             </span>
-            <h1 className="text-2xl font-black mt-1">वेंडर डैशबोर्ड (Service Partner)</h1>
+            <h1 className="text-2xl font-black mt-1">{vendorProfile.shopName}</h1>
+            <p className="text-xs text-blue-200">Owner: {vendorProfile.name} | UPI: {vendorProfile.upiId}</p>
           </div>
           <button
             onClick={() => setIsLoggedIn(false)}
@@ -166,7 +179,7 @@ export default function VendorDashboard() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="उदा. आय प्रमाण पत्र"
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-600"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none text-slate-900"
               />
             </div>
 
@@ -177,7 +190,7 @@ export default function VendorDashboard() {
                 value={rate}
                 onChange={(e) => setRate(e.target.value ? Number(e.target.value) : "")}
                 placeholder="उदा. 200"
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-600"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none text-slate-900"
               />
             </div>
           </div>
@@ -189,11 +202,11 @@ export default function VendorDashboard() {
               value={docs}
               onChange={(e) => setDocs(e.target.value)}
               placeholder="उदा. आधार कार्ड, फोटो, राशन कार्ड"
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-600"
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none text-slate-900"
             />
           </div>
 
-          {/* Revenue Breakup Preview (Vendor Private Only) */}
+          {/* Revenue Breakup Preview */}
           {rate && Number(rate) > 0 && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex justify-between text-xs font-bold text-amber-900">
               <span>एडमिन कमीशन (10% फिक्स): ₹{Math.round(Number(rate) * 0.10)}</span>
@@ -206,79 +219,67 @@ export default function VendorDashboard() {
           </button>
         </form>
 
-        {/* Orders List & Privacy Data Wipeout Logic */}
+        {/* Customer Orders & Document Privacy */}
         <div className="space-y-4">
-          <h2 className="text-base font-bold text-slate-900">ग्राहक ऑर्डर एवं डॉक्यूमेंट प्रोसेसिंग</h2>
+          <h2 className="text-base font-bold text-slate-900">ग्राहक ऑर्डर एवं मैनुअल पेमेंट सत्यापन</h2>
 
-          {orders.length === 0 ? (
-            <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-xs text-slate-400">
-              वर्तमान में कोई एक्टिव ऑर्डर नहीं है।
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {orders.map((ord) => (
-                <div key={ord.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                  <div className="flex justify-between items-center border-b pb-3 border-slate-100">
-                    <div>
-                      <span className="text-[10px] font-mono font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600">
-                        {ord.id}
+          {orders.map((ord) => (
+            <div key={ord.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div className="flex justify-between items-center border-b pb-2 border-slate-100">
+                <div>
+                  <span className="text-[10px] font-mono bg-slate-100 px-2 py-0.5 rounded font-bold text-slate-600">{ord.id}</span>
+                  <h3 className="font-bold text-sm text-slate-900 mt-1">{ord.customerName} - {ord.serviceTitle}</h3>
+                  <p className="text-xs text-emerald-700 font-bold">पेमेंट राशि: ₹{ord.amount}</p>
+                  <p className="text-xs font-mono text-slate-500">Transaction/UTR ID: {ord.utrNumber}</p>
+                </div>
+
+                <span className={`px-3 py-1 text-xs font-bold rounded-full ${
+                  ord.paymentStatus === "Verified" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                }`}>
+                  {ord.paymentStatus === "Verified" ? "✅ पेमेंट प्राप्त हुआ" : "⏳ पेमेंट सत्यापन बाकी"}
+                </span>
+              </div>
+
+              {/* Step 1: Lock Docs until Payment Verified */}
+              {ord.paymentStatus === "Pending_Verification" ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs">
+                  <span className="text-amber-900 font-medium">
+                    🔒 दस्तावेज़ लॉक हैं। अपने Paytm/PhonePe पर UTR ({ord.utrNumber}) चेक करके पेमेंट कन्फर्म करें।
+                  </span>
+                  <button
+                    onClick={() => handleVerifyPayment(ord.id)}
+                    className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl whitespace-nowrap"
+                  >
+                    पेमेंट मिल गई (Confirm Payment) ✅
+                  </button>
+                </div>
+              ) : (
+                /* Step 2: Show Documents & Upload Receipt */
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-slate-700">कस्टमर दस्तावेज़:</p>
+                  <div className="flex gap-2">
+                    {ord.customerDocs.map((doc, idx) => (
+                      <span key={idx} className="px-3 py-1 bg-blue-50 text-blue-700 font-mono text-xs rounded-lg border border-blue-200 flex items-center gap-1">
+                        📄 {doc}
                       </span>
-                      <h3 className="font-bold text-sm text-slate-900 mt-1">{ord.customerName}</h3>
-                      <p className="text-xs text-blue-600 font-semibold">{ord.serviceTitle}</p>
-                    </div>
-
-                    <span className={`px-3 py-1 text-xs font-bold rounded-full ${
-                      ord.status === "Pending" ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"
-                    }`}>
-                      {ord.status === "Pending" ? "⏳ नया ऑर्डर (Pending)" : "🔄 इन-प्रोग्रेस (Accepted)"}
-                    </span>
+                    ))}
                   </div>
 
-                  {/* Document Access Control */}
-                  <div>
-                    <p className="text-xs font-bold text-slate-700 mb-2">ग्राहक दस्तावेज़:</p>
-
-                    {ord.status === "Pending" ? (
-                      <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500 font-medium flex items-center justify-between">
-                        <span>🔒 दस्तावेज़ लॉक हैं। ग्राहक का डेटा देखने के लिए पहले ऑर्डर रिसीव करें।</span>
-                        <button
-                          onClick={() => handleAcceptOrder(ord.id)}
-                          className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs"
-                        >
-                          ऑर्डर रिसीव करें ✅
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="flex gap-2">
-                          {ord.customerDocs.map((doc, i) => (
-                            <span key={i} className="px-3 py-1.5 bg-blue-50 text-blue-700 font-mono text-xs rounded-lg border border-blue-200 flex items-center gap-1">
-                              📄 {doc}
-                            </span>
-                          ))}
-                        </div>
-
-                        {/* Receipt Upload & Data Wipeout Button */}
-                        <div className="pt-2 border-t border-slate-100 flex items-center gap-3">
-                          <input
-                            type="file"
-                            className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-slate-100"
-                          />
-                          <button
-                            onClick={() => handleCompleteAndWipe(ord.id)}
-                            className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm whitespace-nowrap"
-                          >
-                            रसीद अपलोड करें एवं डेटा मिटाएं 🧹
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                  <div className="pt-2 border-t border-slate-100 flex items-center gap-3">
+                    <input type="file" className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-slate-100" />
+                    <button
+                      onClick={() => handleCompleteAndWipe(ord.id)}
+                      className="px-5 py-2 bg-slate-900 text-white font-bold text-xs rounded-xl"
+                    >
+                      रसीद भेजें एवं डेटा मिटाएं 🧹
+                    </button>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
-          )}
+          ))}
         </div>
+
       </div>
     </div>
   );

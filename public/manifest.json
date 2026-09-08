@@ -1,0 +1,22 @@
+{
+  "theme_color": "#2563eb",
+  "background_color": "#f8fafc",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/",
+  "name": "FormSaathi",
+  "short_name": "FormSaathi",
+  "description": "Encrypted Cloud Vault & Online Government Form Services",
+  "icons": [
+    {
+      "src": "/watermark.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/watermark.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
