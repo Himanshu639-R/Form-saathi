@@ -1,142 +1,207 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import { createClient } from "@supabase/supabase-js";
 
-export default function DashboardPage() {
-  const [user, setUser] = useState<any>(null);
-  const [uploading, setUploading] = useState(false);
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [docName, setDocName] = useState('');
-  const [file, setFile] = useState<File | null>(null);
-  const router = useRouter();
+// Supabase Init
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-      setUser(user);
-      loadDocs(user.id);
-    };
-    fetchUserData();
-  }, [router]);
+interface DocType {
+  id: string;
+  name: string;
+  url: string;
+  created_at?: string;
+  size?: string;
+}
 
-  const loadDocs = async (userId: string) => {
-    const { data } = await supabase.from('data_locker').select('*').eq('user_id', userId);
-    if (data) setDocuments(data);
+export default function Dashboard() {
+  const [documents, setDocuments] = useState<DocType[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<DocType | null>(null);
+
+  // Fetch Documents
+  const fetchDocuments = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.storage.from("documents").list();
+    if (data) {
+      const formattedDocs = data.map((file) => {
+        const { data: publicUrlData } = supabase.storage
+          .from("documents")
+          .getPublicUrl(file.name);
+        
+        // Safe size calculation without metadata TS errors
+        const fileSize = file.metadata && "size" in file.metadata 
+          ? `${((file.metadata as { size: number }).size / 1024).toFixed(1)} KB`
+          : "Cloud Stored";
+
+        return {
+          id: file.id || file.name,
+          name: file.name,
+          url: publicUrlData.publicUrl,
+          size: fileSize,
+        };
+      });
+      setDocuments(formattedDocs);
+    }
+    setLoading(false);
   };
 
-  const handleUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file || !docName || !user) return;
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
 
-    setUploading(true);
-    const fileExt = file.name.split('.').pop()?.toLowerCase();
-    const filePath = `${user.id}/${Date.now()}_${file.name}`;
+  // Upload File Function
+  const handleUpload = async () => {
+    if (!selectedFile) return alert("कृपया पहले कोई फ़ाइल चुनें!");
+    setLoading(true);
 
-    const { error: uploadError } = await supabase.storage
-      .from('documents')
-      .upload(filePath, file);
+    const fileName = `${Date.now()}_${selectedFile.name}`;
+    const { error } = await supabase.storage
+      .from("documents")
+      .upload(fileName, selectedFile);
 
-    if (uploadError) {
-      alert('Upload fail ho gaya: ' + uploadError.message);
-      setUploading(false);
-      return;
-    }
-
-    const { error: dbError } = await supabase.from('data_locker').insert({
-      user_id: user.id,
-      document_name: docName,
-      document_type: fileExt,
-      file_path: filePath,
-    });
-
-    if (dbError) {
-      alert('Save error: ' + dbError.message);
+    if (error) {
+      alert("अपलोड में समस्या आई: " + error.message);
     } else {
-      alert('Document Lockers me secure save ho gaya![cite: 1]');
-      setDocName('');
-      setFile(null);
-      loadDocs(user.id);
+      alert("दस्तावेज़ सफलतापूर्वक अपलोड हो गया!");
+      setSelectedFile(null);
+      fetchDocuments();
     }
-    setUploading(false);
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen p-4 max-w-md mx-auto text-black">
-      {/* Top Quick Actions */}
-      <div className="bg-white rounded-xl shadow p-4 mb-4 border border-blue-100 flex items-center justify-between">
-        <div>
-          <p className="text-xs text-gray-500">Welcome Customer</p>
-          <p className="font-bold text-sm text-blue-900">{user?.email}</p>
-        </div>
-        <button 
-          onClick={() => router.push('/services')} 
-          className="bg-green-600 text-white text-xs px-3 py-2 rounded-lg font-bold shadow hover:bg-green-700"
-        >
-          + Fill Application
-        </button>
-      </div>
-
-      {/* Document Upload Card */}
-      <div className="bg-white rounded-xl shadow p-4 mb-6 border">
-        <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-          🔒 Upload To Private Data Locker[cite: 1]
-        </h2>
-        <form onSubmit={handleUpload} className="space-y-3">
-          <input
-            type="text"
-            placeholder="Document Name (e.g. Passport Photo, Aadhaar, Marksheet)"
-            required
-            value={docName}
-            onChange={(e) => setDocName(e.target.value)}
-            className="w-full p-2.5 text-xs border rounded-lg bg-gray-50 text-black font-medium"
-          />
-          <input
-            type="file"
-            accept="image/*,application/pdf"
-            required
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="w-full text-xs text-gray-600 border p-2 rounded-lg bg-gray-50"
-          />
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-8 relative">
+      <div className="max-w-5xl mx-auto space-y-8">
+        
+        {/* Header */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">डिजिटल लॉकर (Document Vault)</h1>
+            <p className="text-sm text-slate-500">आपके अपलोड किए गए दस्तावेज़ यहाँ सुरक्षित संग्रहीत हैं।</p>
+          </div>
           <button
-            type="submit"
-            disabled={uploading}
-            className="w-full bg-blue-600 text-white py-2.5 rounded-lg text-xs font-bold hover:bg-blue-700 shadow"
+            onClick={fetchDocuments}
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl text-sm transition"
           >
-            {uploading ? 'Encrypting & Saving...' : 'Save Document Safely'}
+            🔄 रिफ्रेश लिस्ट
           </button>
-        </form>
-      </div>
+        </div>
 
-      {/* Saved Locker Documents */}
-      <h3 className="text-xs font-bold text-gray-600 uppercase mb-2 tracking-wider">My Saved Documents[cite: 1]</h3>
-      <div className="space-y-2">
-        {documents.length === 0 ? (
-          <p className="text-xs text-gray-400 bg-white p-4 rounded-xl border text-center">Koi document upload nahi hai.</p>
-        ) : (
-          documents.map((doc) => (
-            <div key={doc.id} className="bg-white p-3 rounded-xl border shadow-sm flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs uppercase">
-                  {doc.document_type || 'DOC'}
+        {/* Upload Card */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <h2 className="text-lg font-bold text-slate-800">नया दस्तावेज़ जोड़ें</h2>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="file"
+              onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+              className="file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 text-slate-500 text-sm border border-slate-200 rounded-xl p-1 w-full"
+            />
+            <button
+              onClick={handleUpload}
+              disabled={loading}
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md disabled:opacity-50 transition"
+            >
+              {loading ? "अपलोड हो रहा है..." : "अपलोड करें"}
+            </button>
+          </div>
+        </div>
+
+        {/* Documents List Grid */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-bold text-slate-800">आपके दस्तावेज़</h2>
+
+          {documents.length === 0 && !loading && (
+            <div className="text-center py-12 bg-white rounded-2xl border border-slate-200 text-slate-500">
+              कोई दस्तावेज़ नहीं मिला। ऊपर से नया दस्तावेज़ अपलोड करें।
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {documents.map((doc) => (
+              <div
+                key={doc.id}
+                className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-blue-50 text-blue-600 rounded-xl font-bold text-xl">
+                    📄
+                  </div>
+                  <div className="overflow-hidden">
+                    <p className="font-semibold text-slate-800 truncate">{doc.name}</p>
+                    <p className="text-xs text-slate-400">{doc.size || "Cloud Stored"}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-bold text-xs text-gray-800">{doc.document_name}</p>
-                  <p className="text-[10px] text-gray-400">Reusable Locker Item[cite: 1]</p>
+
+                {/* Preview & Action Buttons */}
+                <div className="flex gap-2 border-t pt-3 border-slate-100">
+                  <button
+                    onClick={() => setPreviewDoc(doc)}
+                    className="flex-1 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold rounded-xl transition text-center"
+                  >
+                    👁️ देखें (Preview)
+                  </button>
+                  <a
+                    href={doc.url}
+                    target="_blank"
+                    download
+                    className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition text-center"
+                  >
+                    ⬇️ डाउनलोड
+                  </a>
                 </div>
               </div>
-              <span className="text-[10px] bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">
-                Protected
-              </span>
-            </div>
-          ))
-        )}
+            ))}
+          </div>
+        </div>
       </div>
+
+      {/* Full Document/Image Preview Lightbox Modal */}
+      {previewDoc && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-3xl w-full max-h-[90vh] flex flex-col relative shadow-2xl animate-in fade-in zoom-in duration-150">
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-center mb-4 border-b pb-3 border-slate-100">
+              <div>
+                <h3 className="font-bold text-lg text-slate-900">{previewDoc.name}</h3>
+                <p className="text-xs text-slate-400">दस्तावेज़ प्रिव्यू</p>
+              </div>
+              <button
+                onClick={() => setPreviewDoc(null)}
+                className="w-9 h-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-full font-bold text-slate-600 transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content (Full Photo View) */}
+            <div className="w-full h-[65vh] bg-slate-100 rounded-2xl overflow-hidden flex items-center justify-center p-2 relative">
+              <img
+                src={previewDoc.url}
+                alt={previewDoc.name}
+                className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
+              />
+            </div>
+
+            {/* Modal Footer */}
+            <div className="mt-4 flex justify-end gap-3">
+              <a
+                href={previewDoc.url}
+                target="_blank"
+                download
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-sm transition"
+              >
+                ओरिजिनल फ़ाइल डाउनलोड करें
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
